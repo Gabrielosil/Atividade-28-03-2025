@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System;
-using System.Collections.Generic;
 using WinFormsApp2;
 
 public static class Database
@@ -14,28 +12,32 @@ public static class Database
 
     public static bool SalvarUsuario(Usuario usuario)
     {
-        try
+        using (MySqlConnection conexao = new MySqlConnection(stringDeConexao))
         {
-            using (MySqlConnection conexao = new MySqlConnection(stringDeConexao))
+            conexao.Open();
+
+            string verificaQuery = "SELECT COUNT(*) FROM usuarios WHERE Telefone = @Telefone";
+            using (MySqlCommand verificaCmd = new MySqlCommand(verificaQuery, conexao))
             {
-                conexao.Open();
-                string query = "INSERT INTO usuarios (Id, Nome, Telefone) VALUES (@Id, @Nome, @Telefone)";
+                verificaCmd.Parameters.AddWithValue("@Telefone", usuario.Telefone);
+                int count = Convert.ToInt32(verificaCmd.ExecuteScalar());
 
-                using (MySqlCommand cmd = new MySqlCommand(query, conexao))
+                if (count > 0)
                 {
-                    cmd.Parameters.AddWithValue("@Id", usuario.Id);
-                    cmd.Parameters.AddWithValue("@Nome", usuario.Nome);
-                    cmd.Parameters.AddWithValue("@Telefone", usuario.Telefone);
-
-                    int quantidade = cmd.ExecuteNonQuery();
-                    return quantidade > 0;
+                    return false;
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Erro ao salvar usuário: " + ex.Message);
-            return false;
+
+            string query = "INSERT INTO usuarios (Id, Nome, Telefone) VALUES (@Id, @Nome, @Telefone)";
+            using (MySqlCommand cmd = new MySqlCommand(query, conexao))
+            {
+                cmd.Parameters.AddWithValue("@Id", usuario.Id);
+                cmd.Parameters.AddWithValue("@Nome", usuario.Nome);
+                cmd.Parameters.AddWithValue("@Telefone", usuario.Telefone);
+
+                int quantidade = cmd.ExecuteNonQuery();
+                return quantidade > 0;
+            }
         }
     }
 
@@ -43,31 +45,24 @@ public static class Database
     {
         List<Usuario> usuarios = new List<Usuario>();
 
-        try
+        using (MySqlConnection conexao = new MySqlConnection(stringDeConexao))
         {
-            using (MySqlConnection conexao = new MySqlConnection(stringDeConexao))
-            {
-                conexao.Open();
-                string query = "SELECT Nome, Telefone FROM alunos";
+            conexao.Open();
+            string query = "SELECT Id, Nome, Telefone FROM alunos";
 
-                using (MySqlCommand cmd = new MySqlCommand(query, conexao))
-                using (MySqlDataReader reader = cmd.ExecuteReader())
+            using (MySqlCommand cmd = new MySqlCommand(query, conexao))
+            using (MySqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
                 {
-                    while (reader.Read())
+                    usuarios.Add(new Usuario
                     {
-                        usuarios.Add(new Usuario
-                        {
-                            Id = reader.GetInt32("Id"),
-                            Nome = reader.GetString("Nome"),
-                            Telefone = reader.GetString("Telefone")
-                        });
-                    }
+                        Id = reader.GetInt32("Id"),
+                        Nome = reader.GetString("Nome"),
+                        Telefone = reader.GetString("Telefone")
+                    });
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Erro ao buscar alunos: " + ex.Message);
         }
 
         return usuarios;
